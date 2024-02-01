@@ -109,7 +109,7 @@ import Prelude -- hides some "unused import" warnings
 -- Note: if you're using 'runSession' to run your WebDriver commands, you don't need to call this explicitly.
 createSession :: (HasCallStack, WebDriver wd) => Capabilities -> wd WDSession
 createSession caps = do
-  ignoreReturn . withAuthHeaders . doCommand methodPost "/session" . single "desiredCapabilities" $ caps
+  ignoreReturn . withAuthHeaders . doCommand methodPost "/session" . single "capabilities" $ caps
   getSession
 
 -- |Retrieve a list of active sessions and their 'Capabilities'.

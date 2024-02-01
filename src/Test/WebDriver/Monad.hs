@@ -31,6 +31,9 @@ import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Applicative
 
 import Prelude -- hides some "unused import" warnings
+import Network.HTTP.Client (Request(..), RequestBody(..))
+import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.ByteString.Char8 as BS
 
 
 {- | A state monad for WebDriver commands. -}
@@ -64,12 +67,24 @@ instance WDSessionState WD where
   putSession = WD . put
 
 instance WebDriver WD where
-  doCommand method path args =
+  doCommand method path args = do
     mkRequest method path args
+    >>= dumpReq
     >>= sendHTTPRequest
     >>= either throwIO return
     >>= getJSONResult
     >>= either throwIO return
+
+dumpReq :: Request -> WD Request
+dumpReq req = do
+  let showReqBody = case requestBody req of
+        RequestBodyLBS lbs -> LBS.unpack lbs
+        RequestBodyBS bs -> BS.unpack bs
+        _ -> "cant see this one b0ss"
+      curlStart = "curl -X"<> show (method req) <>" -H 'Content-Type: application/json' -d'" <> showReqBody <> "' http://"
+      curlEnd = BS.unpack (host req) <> ":" <> show (port req) <> BS.unpack (path req)
+  liftIO . putStrLn $ "\n\n" <> curlStart <> curlEnd <> "\n\n"
+  return req
 
 -- |Executes a 'WD' computation within the 'IO' monad, using the given
 -- 'WDSession' as state for WebDriver requests.

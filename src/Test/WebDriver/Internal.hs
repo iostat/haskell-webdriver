@@ -226,7 +226,16 @@ data WDResponse = WDResponse {
                   deriving (Eq, Show)
 
 instance FromJSON WDResponse where
-  parseJSON (Object o) = WDResponse <$> o .:?? "sessionId" .!= Nothing
-                                    <*> o .: "status"
-                                    <*> o .:?? "value" .!= Null
+  parseJSON (Object o) = hacky <|> original
+    where
+      hacky = do
+        val <-  o .: "value"
+        rspSessId <- val .:?? "sessionId" .!= Nothing
+        rspStatus <- val .:?? "status" .!= 0
+        let rspVal = Object val
+        pure WDResponse { rspSessId, rspStatus, rspVal }
+
+      original = WDResponse <$> o .:?? "sessionId" .!= Nothing
+                            <*> o .:?? "status" .!= 0
+                            <*> o .:?? "value" .!= Null
   parseJSON v = typeMismatch "WDResponse" v

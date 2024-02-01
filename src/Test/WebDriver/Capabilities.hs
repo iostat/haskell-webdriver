@@ -172,39 +172,46 @@ allCaps = defaultCaps { javascriptEnabled = Just True
                       }
 
 instance ToJSON Capabilities where
-  toJSON Capabilities{..} =
-    object $ filter (\p -> snd p /= Null)
-           $ [ "browserName" .= browser
-             , "version" .= version
-             , "platform" .= platform
-             , "proxy" .= proxy
-             , "javascriptEnabled" .= javascriptEnabled
-             , "takesScreenshot" .= takesScreenshot
-             , "handlesAlerts" .= handlesAlerts
-             , "databaseEnabled" .= databaseEnabled
-             , "locationContextEnabled" .= locationContextEnabled
-             , "applicationCacheEnabled" .= applicationCacheEnabled
-             , "browserConnectionEnabled" .= browserConnectionEnabled
-             , "cssSelectorsEnabled" .= cssSelectorsEnabled
-             , "webStorageEnabled" .= webStorageEnabled
-             , "rotatable" .= rotatable
-             , "acceptSslCerts" .= acceptSSLCerts
-             , "nativeEvents" .= nativeEvents
-             , "unexpectedAlertBehavior" .= unexpectedAlertBehavior
-             ]
-    ++ browserInfo
-    ++ additionalCaps
+  toJSON Capabilities{..} = object [ "alwaysMatch" .= alwaysMatch ]
     where
+      alwaysMatch =
+        object $ filter (\p -> snd p /= Null)
+              $ [ "browserName" .= browser
+                , "browserVersion" .= version
+                , "platformName" .= platform
+                , "proxy" .= proxy
+                , "javascriptEnabled" .= javascriptEnabled
+                , "takesScreenshot" .= takesScreenshot
+                , "handlesAlerts" .= handlesAlerts
+                , "databaseEnabled" .= databaseEnabled
+                , "locationContextEnabled" .= locationContextEnabled
+                , "applicationCacheEnabled" .= applicationCacheEnabled
+                , "browserConnectionEnabled" .= browserConnectionEnabled
+                , "cssSelectorsEnabled" .= cssSelectorsEnabled
+                , "webStorageEnabled" .= webStorageEnabled
+                , "rotatable" .= rotatable
+                , "acceptSslCerts" .= acceptSSLCerts
+                , "nativeEvents" .= nativeEvents
+                , "unexpectedAlertBehavior" .= unexpectedAlertBehavior
+                ]
+        ++ browserInfo
+        ++ additionalCaps
       browserInfo = case browser of
         Firefox {..}
-          -> ["firefox_profile" .= ffProfile
-             ,"loggingPrefs" .= object ["driver" .= ffLogPref]
-             ,"firefox_binary" .= ffBinary
-             ,"acceptInsecureCerts" .= fromMaybe False ffAcceptInsecureCerts
-             ]
+          ->
+            let
+              o = object . catMaybes $
+                [ opt "profile" ffProfile
+                , Just ("log" .= object ["level" .= ffLogPref])
+                , opt "binary" ffBinary
+                , if null ffArgs then Nothing else Just ("args" .= ffArgs)
+                , opt "acceptInsecureCerts" ffAcceptInsecureCerts
+                ]
+             in
+              ["moz:firefoxOptions" .= o]
         Chrome {..}
           -> catMaybes [ opt "chrome.chromedriverVersion" chromeDriverVersion ]
-             ++ [ "chromeOptions" .= object (catMaybes
+             ++ [ "goog:chromeOptions" .= object (catMaybes
                   [ opt "binary" chromeBinary
                   ] ++
                   [ "args"       .= chromeOptions
@@ -310,9 +317,10 @@ instance FromJSON Capabilities where
               _ -> []
           getBrowserCaps browser =
             case browser of
-              Firefox {} -> Firefox <$> opt "firefox_profile" Nothing
+              Firefox {} -> Firefox <$> opt "profile" Nothing
                                     <*> opt "loggingPrefs" def
-                                    <*> opt "firefox_binary" Nothing
+                                    <*> opt "binary" Nothing
+                                    <*> opt "args" []
                                     <*> opt "acceptInsecureCerts" Nothing
               Chrome {} -> Chrome <$> opt "chrome.chromedriverVersion" Nothing
                                   <*> opt "chrome.binary" Nothing
@@ -366,6 +374,8 @@ data Browser = Firefox { -- |The firefox profile to use. If Nothing,
                          -- |Server-side path to Firefox binary. If Nothing,
                          -- use a sensible system-based default.
                        , ffBinary :: Maybe FilePath
+                         -- Args to pass to binary
+                       , ffArgs :: [Text]
                          -- |Available after Firefox 52, and required only for Firefox
                          -- geckodriver. Indicates whether untrusted and self-signed TLS
                          -- certificates are implicitly trusted on navigation for the
@@ -540,7 +550,7 @@ instance FromJSON Browser where
 -- |Default Firefox settings. All Maybe fields are set to Nothing. ffLogPref
 -- is set to 'LogInfo'.
 firefox :: Browser
-firefox = Firefox Nothing def Nothing Nothing
+firefox = Firefox Nothing def Nothing [] Nothing
 
 -- |Default Chrome settings. All Maybe fields are set to Nothing, no options are
 -- specified, and no extensions are used.
@@ -657,17 +667,17 @@ instance FromJSON ProxyType where
 instance ToJSON ProxyType where
   toJSON pt = object $ case pt of
     NoProxy ->
-      ["proxyType" .= ("DIRECT" :: String)]
+      ["proxyType" .= ("direct" :: String)]
     UseSystemSettings ->
-      ["proxyType" .= ("SYSTEM" :: String)]
+      ["proxyType" .= ("system" :: String)]
     AutoDetect ->
-      ["proxyType" .= ("AUTODETECT" :: String)]
+      ["proxyType" .= ("autodetect" :: String)]
     PAC{autoConfigUrl = url} ->
-      ["proxyType" .= ("PAC" :: String)
+      ["proxyType" .= ("pac" :: String)
       ,"proxyAutoconfigUrl" .= url
       ]
     Manual{ftpProxy = ftp, sslProxy = ssl, httpProxy = http} ->
-      ["proxyType" .= ("MANUAL" :: String)
+      ["proxyType" .= ("manual" :: String)
       ,"ftpProxy"  .= ftp
       ,"sslProxy"  .= ssl
       ,"httpProxy" .= http
