@@ -69,22 +69,22 @@ instance WDSessionState WD where
 instance WebDriver WD where
   doCommand method path args = do
     mkRequest method path args
-    >>= dumpReq
+    -- >>= dumpReq
     >>= sendHTTPRequest
     >>= either throwIO return
     >>= getJSONResult
     >>= either throwIO return
 
-dumpReq :: Request -> WD Request
-dumpReq req = do
-  let showReqBody = case requestBody req of
-        RequestBodyLBS lbs -> LBS.unpack lbs
-        RequestBodyBS bs -> BS.unpack bs
-        _ -> "cant see this one b0ss"
-      curlStart = "curl -X"<> show (method req) <>" -H 'Content-Type: application/json' -d'" <> showReqBody <> "' http://"
-      curlEnd = BS.unpack (host req) <> ":" <> show (port req) <> BS.unpack (path req)
-  liftIO . putStrLn $ "\n\n" <> curlStart <> curlEnd <> "\n\n"
-  return req
+-- dumpReq :: Request -> WD Request
+-- dumpReq req = do
+--   let showReqBody = case requestBody req of
+--         RequestBodyLBS lbs -> LBS.unpack lbs
+--         RequestBodyBS bs -> BS.unpack bs
+--         _ -> "cant see this one b0ss"
+--       curlStart = "curl -X"<> show (method req) <>" -H 'Content-Type: application/json' -d'" <> showReqBody <> "' http://"
+--       curlEnd = BS.unpack (host req) <> ":" <> show (port req) <> BS.unpack (path req)
+--   liftIO . putStrLn $ "\n\n" <> curlStart <> curlEnd <> "\n\n"
+--   return req
 
 -- |Executes a 'WD' computation within the 'IO' monad, using the given
 -- 'WDSession' as state for WebDriver requests.
